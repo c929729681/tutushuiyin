@@ -39,10 +39,10 @@ function createCanvas(imageSrc) {
 }
 
 function setDefaultWatermarkSize(img, canvas) {
-    const scale = Math.min(img.width, img.height) / Math.max(watermarkImage.width, watermarkImage.height);
-    watermarkSizeInput.value = scale * 83; // 设置水印大小为图片的83%
-    positionXInput.value = 50; // 水平居中
-    positionYInput.value = 50; // 垂直居中
+    const scale = Math.min(img.width / watermarkImage.width, img.height / watermarkImage.height, 0.83);
+    watermarkSizeInput.value = scale * 100;
+    positionXInput.value = 50;
+    positionYInput.value = 50;
 }
 
 function drawImageAndWatermark(canvas, ctx, img) {
@@ -60,26 +60,27 @@ function drawImageAndWatermark(canvas, ctx, img) {
 }
 
 async function downloadImages() {
-    const zip = new JSZip();
     const canvasElements = document.querySelectorAll('.image-canvas');
-
-    for (let i = 0; i < canvasElements.length; i++) {
-        const canvas = canvasElements[i];
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        zip.file(`watermarked_image_${i}.png`, blob);
+    if (canvasElements.length === 1) {
+        // 如果只有一张图片，直接下载
+        const canvas = canvasElements[0];
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.download = 'watermarked_image.png';
+        link.href = image;
+        link.click();
+    } else {
+        // 多张图片使用压缩包
+        const zip = new JSZip();
+        for (let i = 0; i < canvasElements.length; i++) {
+            const canvas = canvasElements[i];
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            zip.file(`watermarked_image_${i}.png`, blob);
+        }
+        zip.generateAsync({ type: 'blob' }).then(function(content) {
+            saveAs(content, "watermarked_images.zip");
+        });
     }
-
-    zip.generateAsync({ type: 'blob' })
-       .then(function(content) {
-           const url = URL.createObjectURL(content);
-           const link = document.createElement('a');
-           link.href = url;
-           link.download = 'watermarked_images.zip';
-           document.body.appendChild(link);
-           link.click();
-           document.body.removeChild(link);
-           URL.revokeObjectURL(url);
-       });
 }
 
 [opacityInput, positionXInput, positionYInput, watermarkSizeInput].forEach(input => {
